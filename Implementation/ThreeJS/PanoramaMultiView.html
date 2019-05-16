@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - equirectangular video panorama</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+			}
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				color: #ffffff;
+				padding: 5px;
+				font-family:Monospace;
+				font-size:13px;
+				font-weight: bold;
+				text-align:center;
+			}
+			a { color: #ffffff; }
+		</style>
+	</head>
+	<body>
+
+		<div id="container"></div>
+
+		<script src="three.js"></script>
+
+		<script src="WebGL.js"></script>
+
+        <video id="video" loop muted crossOrigin="anonymous" webkit-playsinline style="display:none">
+            <!-- Video from https://www.videoblocks.com/video/piccadilly-circus-london-city-england---united-kingdom-360vr-b-846_lvwj62tab55 -->
+			<source src="https://d2v9y0dukr6mq2.cloudfront.net/video/preview/TOEwt0C/videoblocks-piccadilly-circus-london-city-england-united-kingdom-360vr_rZgnxp_IvZ__WM.mp4">
+            
+            <!-- Video from https://en.wikipedia.org/wiki/360-degree_video -->
+            <!-- <source src="https://upload.wikimedia.org/wikipedia/commons/f/fb/Hundra_knektars_marsch_p%C3%A5_Forum_Vulgaris.webm"> -->
+		</video>
+
+		<script>
+			if ( WEBGL.isWebGLAvailable() === false ) {
+				document.body.appendChild( WEBGL.getWebGLErrorMessage() );
+			}
+			var camera1, camera2, scene, renderer;
+			var isUserInteracting = false,
+				lon = 0, lat = 0,
+				phi = 0, theta = 0,
+				distance = 50,
+				onPointerDownPointerX = 0,
+				onPointerDownPointerY = 0,
+				onPointerDownLon = 0,
+				onPointerDownLat = 0;
+
+			var clock = new THREE.Clock();
+			var speed = 2;
+
+			// Key presses
+			var isUserKeyDown = false;
+
+			// viewport
+			var insetWidth = window.innerHeight / 2;
+			var insetHeight = window.innerHeight / 2;
+
+			init();
+			animate();
+			function init() {
+				var container, mesh;
+				container = document.getElementById( 'container' );
+
+
+				camera1 = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1100 );
+				camera1.target = new THREE.Vector3( 0, 0, -1 );
+				camera2 = new THREE.PerspectiveCamera( 75, 1, 1, 1100);
+				camera2.target = new THREE.Vector3( 0, 0, -1);
+
+				scene = new THREE.Scene();
+				var geometry = new THREE.SphereBufferGeometry( 500, 60, 40 );
+				// invert the geometry on the x-axis so that all of the faces point inward
+				geometry.scale( - 1, 1, 1 );
+				var video = document.getElementById( 'video' );
+				video.play();
+				var texture = new THREE.VideoTexture( video );
+				var material = new THREE.MeshBasicMaterial( { map: texture } );
+				mesh = new THREE.Mesh( geometry, material );
+				scene.add( mesh );
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+				document.addEventListener( 'wheel', onDocumentMouseWheel, false );
+				//My event listeners
+				document.addEventListener( 'keydown', onDocumentKeyDown, false );
+				document.addEventListener( 'keyup', onDocumentKeyUp, false);
+				//
+				window.addEventListener( 'resize', onWindowResize, false );
+			}
+			function onWindowResize() {
+				camera1.aspect = window.innerWidth / window.innerHeight;
+				camera1.updateProjectionMatrix();
+				camera2.aspect = insetWidth / insetHeight;
+				camera2.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				insetWidth = window.innerHeight / 2; // square
+				insetHeight = window.innerHeight / 2;
+			}
+			function onDocumentMouseDown( event ) {
+				event.preventDefault();
+				isUserInteracting = true;
+				onPointerDownPointerX = event.clientX;
+				onPointerDownPointerY = event.clientY;
+				onPointerDownLon = lon;
+                onPointerDownLat = lat;
+			}
+			function onDocumentMouseMove( event ) {
+				if ( isUserInteracting === true ) {
+					lon = ( onPointerDownPointerX - event.clientX ) * 0.1 + onPointerDownLon;
+					lat = ( event.clientY - onPointerDownPointerY ) * 0.1 + onPointerDownLat;
+				}
+			}
+			function onDocumentMouseUp() {
+                isUserInteracting = false;
+                // console.log(distance * Math.sin( phi ) * Math.cos( theta ), distance * Math.cos( phi ));
+			}
+			function onDocumentMouseWheel( event ) {
+				distance += event.deltaY * 0.05;
+				distance = THREE.Math.clamp( distance, 1, 50 );
+			}
+			// My event functions
+			function onDocumentKeyDown( event ){
+				isUserKeyDown = true;
+				if(event.key == " "){
+					console.log("New test");
+					console.log("# Camera 1 #");
+					console.log(camera1.position.x);
+					console.log(camera1.position.y);
+					console.log(camera1.position.z);
+					console.log("# Camera 2 #");
+					console.log(camera2.position.x);
+					console.log(camera2.position.y);
+					console.log(camera2.position.z);
+					console.log("");
+
+					camera1.position.copy( camera2.position );
+
+					var vector = new THREE.Vector3( 0, 0, -1 );
+					// vector.applyQuaternion( camera2.quaternion );
+					//camera2.getWorldDirection(camera1.target);
+
+					var vector1 = new THREE.Vector3( 1, 1, 1 );
+					var vector2 = new THREE.Vector3( 1, 1, 1 );
+					camera1.getWorldDirection(vector1);
+					camera2.getWorldDirection(vector2);
+
+					console.log(vector1, vector2);
+
+					phi = Math.acos( camera2.position.y / distance );
+					theta = Math.acos( camera2.position.x / ( distance * Math.sin(phi) ) );
+					// camera1.position.x = distance * Math.sin( phi ) * Math.cos( theta );
+					// camera1.position.y = distance * Math.cos( phi );
+					// camera1.position.z = distance * Math.sin( phi ) * Math.sin( theta );
+					// camera1.updateMatrix();
+
+					console.log("# Camera 1 #");
+					console.log(camera1.position.x);
+					console.log(camera1.position.y);
+					console.log(camera1.position.z);
+					console.log("# Camera 2 #");
+					console.log(camera2.position.x);
+					console.log(camera2.position.y);
+					console.log(camera2.position.z);
+					console.log("End test");
+					console.log("--------------------");
+				}
+
+				// userKey.push(event.key);
+			}
+			function onDocumentKeyUp( event ){
+				isUserKeyDown = false;
+			}
+			function rotateCamera1ToCamera2(){
+
+			}
+
+			function animate() {
+				requestAnimationFrame( animate );
+				update();
+			}
+			function update() {
+				lat = Math.max( - 85, Math.min( 85, lat ) );
+				phi = THREE.Math.degToRad( 90 - lat );
+				theta = THREE.Math.degToRad( lon );
+				camera1.position.x = distance * Math.sin( phi ) * Math.cos( theta );
+				camera1.position.y = distance * Math.cos( phi );
+				camera1.position.z = distance * Math.sin( phi ) * Math.sin( theta );
+				camera1.lookAt( camera1.target );
+				renderer.render( scene, camera1 );
+
+				// camera2.position.copy( camera1.position );
+				// camera2.lookAt( camera1.target );
+
+				renderer.setClearColor( 0x000000, 0 );
+				renderer.setViewport( 0, 0, window.innerWidth, window.innerHeight );
+					// matLine.resolution.set( window.innerWidth, window.innerHeight ); // resolution of the viewport
+				renderer.setClearColor( 0x222222, 1 );
+				renderer.clearDepth(); // important!
+				renderer.setScissorTest( true );
+				renderer.setScissor( 10, 10, insetWidth, insetHeight );
+				renderer.setViewport( 10, 10, insetWidth, insetHeight );
+
+					// matLine.resolution.set( insetWidth, insetHeight ); // resolution of the inset viewport
+				renderer.render( scene, camera2 );
+				renderer.setScissorTest( false );
+				renderer.setViewport( 0, 0, window.innerWidth, window.innerHeight );
+
+				slowRotate();
+			}
+			function slowRotate(){
+				var delta = clock.getDelta();
+			if ( ! camera1.quaternion.equals( camera2.quaternion ) ) {
+				var step = speed * delta;
+				camera1.quaternion.rotateTowards( camera2.quaternion, step );
+			}
+			}
+		</script>
+	</body>
+</html>
